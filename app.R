@@ -110,87 +110,141 @@ ui <- page_navbar(
     .delete-btn:hover {
       color: darkred;
     }
+    /* Autosave Notification Styles */
+    .autosave-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 1000;
+    }
+    /* Sidebar buttons Styling */
+    .sidebar-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .sidebar-buttons .btn {
+      width: 100%;
+      margin-bottom: 5px;
+    }
+    .sidebar-buttons .shiny-input-container {
+      width: 100%;
+    }
   ")),
-    tags$script(HTML("
-      // Globales Objekt zum Speichern der Video-URLs
-      var videoStorage = {};
-      
-      $(document).ready(function() {
-        // Speed control für Video
-        Shiny.addCustomMessageHandler('updateSpeed', function(message) {
-          var video = document.getElementById('videoPlayer');
-          if (video) {
-            video.playbackRate = message.speed;
-          }
-        });
-        
-        // Zu einer bestimmten Zeit springen
-        Shiny.addCustomMessageHandler('seekToTime', function(message) {
-          var video = document.getElementById('videoPlayer');
-          if (video) {
-            video.currentTime = message.time;
-          }
-        });
-        
-        // Video File Upload Handler
-        $('#videoFile').on('change', function(e) {
-          var file = e.target.files[0];
-          if (file) {
-            var objectURL = URL.createObjectURL(file);
-            $('#videoPlayer').attr('src', objectURL);
-            
-            // Speichere Video URL mit Dateinamen als Schlüssel
-            videoStorage[file.name] = objectURL;
-            
-            // Sende Liste der verfügbaren Videos an Shiny
-            var videoNamesList = Object.keys(videoStorage);
-            Shiny.setInputValue('videoNames', videoNamesList);
-            
-            // Setze den aktuellen Videowert (für die Dropdown-Liste)
-            Shiny.setInputValue('currentVideoName', file.name);
-          }
-        });
-        
-        // Wenn ein Video aus der Dropdown-Liste ausgewählt wird
-        Shiny.addCustomMessageHandler('loadSelectedVideo', function(message) {
-          var videoName = message.name;
-          if (videoStorage[videoName]) {
-            $('#videoPlayer').attr('src', videoStorage[videoName]);
-          }
-        });
-        
-        // Direkt beim Tagging die aktuelle Videozeit senden
-        $('#add_tag').on('click', function() {
-          var video = document.getElementById('videoPlayer');
-          if (video) {
-            Shiny.setInputValue('tagCurrentTime', video.currentTime);
-          }
-        });
 
-        // Delegierter Event-Handler für Delete-Buttons
-        $(document).on('click', '.delete-btn', function(e) {
-          e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
-          var timeValue = $(this).data('time');
-          Shiny.setInputValue('delete_row', timeValue);
-        });
+tags$script(HTML("
+  // Globales Objekt zum Speichern der Video-URLs
+  var videoStorage = {};
+  
+  $(document).ready(function() {
+    // Speed control für Video
+    Shiny.addCustomMessageHandler('updateSpeed', function(message) {
+      var video = document.getElementById('videoPlayer');
+      if (video) {
+        video.playbackRate = message.speed;
+      }
+    });
+    
+    // Zu einer bestimmten Zeit springen
+    Shiny.addCustomMessageHandler('seekToTime', function(message) {
+      var video = document.getElementById('videoPlayer');
+      if (video) {
+        video.currentTime = message.time;
+      }
+    });
+    
+    // Video File Upload Handler
+    $('#videoFile').on('change', function(e) {
+      var file = e.target.files[0];
+      if (file) {
+        var objectURL = URL.createObjectURL(file);
+        $('#videoPlayer').attr('src', objectURL);
         
-        // Aktuelle Videozeit kontinuierlich anzeigen
-        setInterval(function() {
-          var video = document.getElementById('videoPlayer');
-          if (video) {
-            Shiny.setInputValue('currentVideoTime', video.currentTime);
-          }
-        }, 500); // alle 500ms aktualisieren
-      });
-    "))
+        // Speichere Video URL mit Dateinamen als Schlüssel
+        videoStorage[file.name] = objectURL;
+        
+        // Sende Liste der verfügbaren Videos an Shiny
+        var videoNamesList = Object.keys(videoStorage);
+        Shiny.setInputValue('videoNames', videoNamesList);
+        
+        // Setze den aktuellen Videowert (für die Dropdown-Liste)
+        Shiny.setInputValue('currentVideoName', file.name);
+      }
+    });
+    
+    // Wenn ein Video aus der Dropdown-Liste ausgewählt wird
+    Shiny.addCustomMessageHandler('loadSelectedVideo', function(message) {
+      var videoName = message.name;
+      if (videoStorage[videoName]) {
+        $('#videoPlayer').attr('src', videoStorage[videoName]);
+      }
+    });
+    
+    // Direkt beim Tagging die aktuelle Videozeit senden
+    $('#add_tag').on('click', function() {
+      var video = document.getElementById('videoPlayer');
+      if (video) {
+        Shiny.setInputValue('tagCurrentTime', video.currentTime);
+      }
+    });
+
+    // Delegierter Event-Handler für Delete-Buttons
+    $(document).on('click', '.delete-btn', function(e) {
+      e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
+      var timeValue = $(this).data('time');
+      Shiny.setInputValue('delete_row', timeValue);
+    });
+    
+    // Aktuelle Videozeit kontinuierlich anzeigen
+    setInterval(function() {
+      var video = document.getElementById('videoPlayer');
+      if (video) {
+        Shiny.setInputValue('currentVideoTime', video.currentTime);
+      }
+    }, 500); // alle 500ms aktualisieren
+    
+    // Autosave-Benachrichtigung anzeigen
+    Shiny.addCustomMessageHandler('showAutosaveNotification', function(message) {
+      // Erstelle Benachrichtigung, falls noch nicht vorhanden
+      if ($('#autosaveNotification').length === 0) {
+        $('body').append('<div id=\"autosaveNotification\" class=\"autosave-notification\"><i class=\"fas fa-save\"></i> ' + message.text + '</div>');
+      }
+      
+      // Zeige Benachrichtigung
+      $('#autosaveNotification').text(message.text).fadeIn().delay(2000).fadeOut();
+    });
+  });
+"))
   ),
   ## Sidebar ####
   sidebar = sidebar(
-    width = "30%",
-    position = "right",
-    open = FALSE,
-    useShinyjs()
-  ),
+  width = "30%",
+  position = "right",
+  open = FALSE,
+  useShinyjs(),
+  # Füge neue Datenmanagement-Sektion hinzu
+  div(
+    style = "padding: 15px 0;",
+    h4("Datenmanagement"),
+    div(
+      class = "sidebar-buttons",
+      downloadButton("download_tags", "Events exportieren"),
+      downloadButton("download_special_format", "T-Daten exportieren"),
+      downloadButton("save_project", "Projekt speichern"),
+      fileInput("load_project", "Projekt laden", accept = ".rds"),
+      uiOutput("restore_autosave"),
+      hr(),
+      actionButton("clear_all", "Alles löschen", class = "btn-danger", style = "width: 100%;")
+    )
+  )
+),
   ## Analyse Seite ####
   nav_panel(
     "Analyse",
@@ -257,15 +311,9 @@ ui <- page_navbar(
                div(
                  class = "event-list",
                  DTOutput("event_list")
-               ),
-               div(
-                style = "display: flex; justify-content: center; gap: 10px;",
-                downloadButton("download_tags", "Events exportieren"),
-                downloadButton("download_special_format", "T-Daten exportieren"),
-                actionButton("clear_all", "Alle löschen", class = "btn-danger")
-              )
+               )
              )
-      )
+          )
     )
   ),
   
@@ -522,7 +570,7 @@ server <- function(input, output, session) {
   # Download der Events im speziellen Format für T-Daten
 output$download_special_format <- downloadHandler(
   filename = function() {
-    paste0("judo_events_t_data_", format(Sys.time(), "%Y%m%d_%H%M"), ".txt")
+    paste0("judo_t_data_", format(Sys.time(), "%Y%m%d_%H%M"), ".txt")
   },
   content = function(file) {
     req(rv$events)
@@ -584,6 +632,93 @@ output$download_special_format <- downloadHandler(
     writeLines(result, file)
   }
 )
+  # Projektdaten speichern
+output$save_project <- downloadHandler(
+  filename = function() {
+    paste0("judo_project_", format(Sys.time(), "%Y%m%d_%H%M"), ".rds")
+  },
+  content = function(file) {
+    # Erstelle ein Projektobjekt mit allen relevanten Daten
+    project_data <- list(
+      events = rv$events,
+      current_video = rv$current_video,
+      timestamp = Sys.time()
+    )
+    saveRDS(project_data, file)
+  }
+)
+
+# Projektdaten laden
+observeEvent(input$load_project, {
+  req(input$load_project)
+  
+  # Projektdaten laden
+  project_data <- readRDS(input$load_project$datapath)
+  
+  # Daten wiederherstellen
+  rv$events <- project_data$events
+  rv$current_video <- project_data$current_video
+  
+  # Hinweis anzeigen
+  showNotification("Projekt erfolgreich geladen", type = "message")
+  
+  # Video wiederherstellen (wenn möglich)
+  if (!is.null(project_data$current_video)) {
+    updateSelectInput(session, "selectedVideo", selected = project_data$current_video)
+  }
+})
+
+# Automatisches Speichern einrichten
+autoSaveTimer <- reactiveTimer(60000)  # alle 60 Sekunden
+
+observe({
+  autoSaveTimer()
+  
+  # Nur speichern, wenn Events vorhanden sind
+  if (nrow(rv$events) > 0) {
+    # Projektdaten erstellen
+    project_data <- list(
+      events = rv$events,
+      current_video = rv$current_video,
+      timestamp = Sys.time()
+    )
+    
+    # In einer temporären Datei speichern
+    temp_file <- file.path(tempdir(), "judo_autosave.rds")
+    saveRDS(project_data, temp_file)
+    
+    # Benachrichtigung anzeigen über Custom JS
+    session$sendCustomMessage("showAutosaveNotification", 
+                              list(text = "Automatisch gespeichert"))
+  }
+})
+
+# Button für Wiederherstellung hinzufügen (sichtbar in der UI)
+output$restore_autosave <- renderUI({
+  temp_file <- file.path(tempdir(), "judo_autosave.rds")
+  if (file.exists(temp_file)) {
+    actionButton("restore_autosave_btn", "Letzte automatische Sicherung wiederherstellen")
+  }
+})
+
+# Handler für Wiederherstellungs-Button
+observeEvent(input$restore_autosave_btn, {
+  temp_file <- file.path(tempdir(), "judo_autosave.rds")
+  
+  if (file.exists(temp_file)) {
+    project_data <- readRDS(temp_file)
+    rv$events <- project_data$events
+    rv$current_video <- project_data$current_video
+    showNotification("Automatische Sicherung wiederhergestellt", type = "message")
+    
+    # Video wiederherstellen (wenn möglich)
+    if (!is.null(project_data$current_video)) {
+      updateSelectInput(session, "selectedVideo", selected = project_data$current_video)
+    }
+  } else {
+    showNotification("Keine automatische Sicherung gefunden", type = "error")
+  }
+})
 }
 
 # App starten
