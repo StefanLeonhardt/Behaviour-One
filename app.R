@@ -1,7 +1,4 @@
-#
 # Dies ist eine Shiny web Applikation. Du kannst durch drücken des Button "Run App" loslegen
-#
-
 
 # Setup ####
 ## Set maximum upload size to 5GB ####
@@ -71,47 +68,13 @@ categories <- list(
   )
 )
 
-
-js_code <- "
-shinyjs.getVideoTime = function() {
-  var video = document.getElementById('video');
-  if (video) {
-    Shiny.setInputValue('video_time', video.currentTime);
-  }
-}
-
-shinyjs.jumpToTime = function(params) {
-  var video = document.getElementById('video');
-  if (video) {
-    video.currentTime = params;
-    video.play();
-  }
-}
-
-// Add video error handling
-shinyjs.initializeVideo = function() {
-  var video = document.getElementById('video');
-  if (video) {
-    video.addEventListener('error', function(e) {
-      console.error('Video Error:', e);
-      Shiny.setInputValue('video_error_details', {
-        code: video.error.code,
-        message: video.error.message
-      });
-    });
-  }
-}
-"
-
-
 # User Interface für Shiny app ####
-
 ui <- page_navbar(
-  title = "Behaviour 1.0",
+  title = "Behaviour One",
   theme = bs_theme(version = 5),
   header = tags$head(
-    tags$link(href = "https://unpkg.com/video.js/dist/video-js.min.css", rel = "stylesheet"),
-    tags$script(src = "https://unpkg.com/video.js/dist/video.min.js"),
+    # Lade Font Awesome für Icons
+    tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"),
     tags$style(HTML("
     .video-container {
       position: relative;
@@ -125,25 +88,108 @@ ui <- page_navbar(
       width: 100%;
       height: 100%;
     }
-    .video-js {
-      width: 100% !important;
-      height: 100% !important;
-      position: absolute;
-      top: 0;
-      left: 0;
+    /* Hover-Effekt für klickbare Zeilen */
+    .clickable-row {
+      cursor: pointer;
     }
-    .video-js .vjs-tech {
-      position: absolute !important;
+    .clickable-row:hover {
+      background-color: #f0f8ff !important;
     }
-  "))
+    /* Zeit-Wert formatieren */
+    .time-display {
+      font-family: monospace;
+      color: #0066cc;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    /* Lösch-Button formatieren */
+    .delete-btn {
+      color: red;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      color: darkred;
+    }
+  ")),
+    tags$script(HTML("
+      // Globales Objekt zum Speichern der Video-URLs
+      var videoStorage = {};
+      
+      $(document).ready(function() {
+        // Speed control für Video
+        Shiny.addCustomMessageHandler('updateSpeed', function(message) {
+          var video = document.getElementById('videoPlayer');
+          if (video) {
+            video.playbackRate = message.speed;
+          }
+        });
+        
+        // Zu einer bestimmten Zeit springen
+        Shiny.addCustomMessageHandler('seekToTime', function(message) {
+          var video = document.getElementById('videoPlayer');
+          if (video) {
+            video.currentTime = message.time;
+          }
+        });
+        
+        // Video File Upload Handler
+        $('#videoFile').on('change', function(e) {
+          var file = e.target.files[0];
+          if (file) {
+            var objectURL = URL.createObjectURL(file);
+            $('#videoPlayer').attr('src', objectURL);
+            
+            // Speichere Video URL mit Dateinamen als Schlüssel
+            videoStorage[file.name] = objectURL;
+            
+            // Sende Liste der verfügbaren Videos an Shiny
+            var videoNamesList = Object.keys(videoStorage);
+            Shiny.setInputValue('videoNames', videoNamesList);
+            
+            // Setze den aktuellen Videowert (für die Dropdown-Liste)
+            Shiny.setInputValue('currentVideoName', file.name);
+          }
+        });
+        
+        // Wenn ein Video aus der Dropdown-Liste ausgewählt wird
+        Shiny.addCustomMessageHandler('loadSelectedVideo', function(message) {
+          var videoName = message.name;
+          if (videoStorage[videoName]) {
+            $('#videoPlayer').attr('src', videoStorage[videoName]);
+          }
+        });
+        
+        // Direkt beim Tagging die aktuelle Videozeit senden
+        $('#add_tag').on('click', function() {
+          var video = document.getElementById('videoPlayer');
+          if (video) {
+            Shiny.setInputValue('tagCurrentTime', video.currentTime);
+          }
+        });
+
+        // Delegierter Event-Handler für Delete-Buttons
+        $(document).on('click', '.delete-btn', function(e) {
+          e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
+          var timeValue = $(this).data('time');
+          Shiny.setInputValue('delete_row', timeValue);
+        });
+        
+        // Aktuelle Videozeit kontinuierlich anzeigen
+        setInterval(function() {
+          var video = document.getElementById('videoPlayer');
+          if (video) {
+            Shiny.setInputValue('currentVideoTime', video.currentTime);
+          }
+        }, 500); // alle 500ms aktualisieren
+      });
+    "))
   ),
   ## Sidebar ####
   sidebar = sidebar(
     width = "30%",
     position = "right",
     open = FALSE,
-    useShinyjs(),
-    extendShinyjs(text = js_code, functions = c("getVideoTime", "jumpToTime", "initializeVideo"))
+    useShinyjs()
   ),
   ## Analyse Seite ####
   nav_panel(
@@ -153,17 +199,34 @@ ui <- page_navbar(
       column(6,
              card(
                card_header("Video"),
-               div(
-                 style = "display: flex; justify-content: space-between; align-items: center;",
-                 fileInput("video_upload", "Video hochladen",
-                           accept = c("video/mp4", "video/webm", "video/ogg", "video/quicktime"),
-                           multiple = FALSE),
-                 selectInput("video_select", "Video auswählen", 
-                             choices = NULL, 
-                             width = "200px")
+               fluidRow(
+                 column(6,
+                        tags$input(
+                          id = "videoFile",
+                          type = "file",
+                          accept = "video/mp4,video/webm,video/ogg",
+                          class = "form-control mb-3"
+                        )
+                 ),
+                 column(6,
+                        uiOutput("videoSelectionDropdown")
+                 )
                ),
-               uiOutput("video_container"),
-               verbatimTextOutput("video_debug_info")  # For debugging
+               tags$video(
+                 id = "videoPlayer",
+                 width = "100%",
+                 controls = TRUE,
+                 src = ""
+               ),
+               fluidRow(
+                 column(6,
+                        sliderInput("videoSpeed", "Geschwindigkeit", 
+                                   min = 0.25, max = 2, value = 1, step = 0.25)
+                 ),
+                 column(6,
+                        textOutput("currentTimeDisplay")
+                 )
+               )
              )
       ),
       column(6,  
@@ -196,10 +259,11 @@ ui <- page_navbar(
                  DTOutput("event_list")
                ),
                div(
-                 style = "display: flex; justify-content: center; gap: 10px;",
-                 downloadButton("download_tags", "Events exportieren"),
-                 actionButton("clear_all", "Alle löschen", class = "btn-danger")
-               )
+                style = "display: flex; justify-content: center; gap: 10px;",
+                downloadButton("download_tags", "Events exportieren"),
+                downloadButton("download_special_format", "T-Daten exportieren"),
+                actionButton("clear_all", "Alle löschen", class = "btn-danger")
+              )
              )
       )
     )
@@ -215,437 +279,312 @@ ui <- page_navbar(
 )
 
 # Server für Shiny App ####
-  server <- function(input, output, session) {
-  
-  # Reactive Werte #
-  tagged_events <- reactiveVal(data.frame(
-    Zeit = numeric(),
-    Zeit_Format = numeric(),
-    Rolle = character(),
-    Kampfphase = character(),
-    stringsAsFactors = FALSE
-  ))
+server <- function(input, output, session) {
+  # Reaktive Werte für die Anwendung
+  rv <- reactiveValues(
+    events = data.frame(
+      Zeit = numeric(0),
+      FPS = numeric(0),
+      Rolle = character(0),
+      Phase = character(0),
+      stringsAsFactors = FALSE
+    ),
+    current_video = NULL
+  )
   
   # Zeit in FPS #
-  format_time <- function(seconds) {
+  formatTime <- function(seconds) {
     total_frames <- round(seconds * 30)
     return(total_frames)
   }
   
-  # Daten Management von CSV ####
-  saveData <- function(data) {
-    write.csv(data, "data.csv", row.names = FALSE)
-  }
+  # Aktualisiere die Videogeschwindigkeit, wenn sich der Slider ändert
+  observeEvent(input$videoSpeed, {
+    session$sendCustomMessage("updateSpeed", list(speed = input$videoSpeed))
+  })
   
-  loadData <- function() {
-    if (file.exists("data.csv")) {
-      tagged_events(read.csv("data.csv"))
+  # Aktualisiere die Anzeige der aktuellen Videozeit
+  output$currentTimeDisplay <- renderText({
+    req(input$currentVideoTime)
+    paste("Zeit:", formatTime(input$currentVideoTime))
+  })
+  
+  # Dropdown für die Videoauswahl aktualisieren
+  output$videoSelectionDropdown <- renderUI({
+    req(input$videoNames)
+    selectInput("selectedVideo", "Geladene Videos:", 
+                choices = input$videoNames,
+                selected = input$currentVideoName)
+  })
+  
+  # Video wechseln, wenn ein anderes aus der Dropdown-Liste ausgewählt wird
+  observeEvent(input$selectedVideo, {
+    req(input$selectedVideo)
+    if (input$selectedVideo != "") {
+      session$sendCustomMessage("loadSelectedVideo", list(name = input$selectedVideo))
+      rv$current_video <- input$selectedVideo
     }
-  }
+  })
   
-  # Video Path Management ####
-  saveVideoPath <- function(path) {
-    if (!is.null(path) && is.character(path) && length(path) == 1) {
-      path <- trimws(path)
-      writeLines(path, "video_path.txt")
+  # Update main category choices based on selected role
+  observe({
+    role <- input$rolle
+    main_cats <- names(categories[[role]])
+    updateSelectInput(session, "main_category", choices = main_cats)
+  })
+  
+  # Dynamisches UI für die Kriterien basierend auf der ausgewählten Hauptkategorie erstellen
+  output$criteria_ui <- renderUI({
+    req(input$rolle, input$main_category)
+    
+    role <- input$rolle
+    main_cat <- input$main_category
+    
+    if (is.null(categories[[role]][[main_cat]])) {
+      return(NULL)
     }
-  }
-  
-  loadVideoPath <- function() {
-    if (!file.exists("video_path.txt")) return(NULL)
-    tryCatch({
-      lines <- readLines("video_path.txt", warn = FALSE)
-      if (length(lines) > 0) {
-        path <- trimws(lines[1])
-        if (nzchar(path) && file.exists(path)) {
-          return(normalizePath(path, winslash = "/"))
-        }
-      }
-      return(NULL)
-    }, error = function(e) {
-      warning("Error reading video path: ", e$message)
-      return(NULL)
+    
+    criteria_list <- categories[[role]][[main_cat]]
+    
+    # Erstelle UI-Elemente für jedes Kriterium
+    criteria_uis <- lapply(names(criteria_list), function(criterion_name) {
+      values <- criteria_list[[criterion_name]]
+      selectInput(
+        inputId = paste0("criterion_", gsub(" ", "_", criterion_name)),
+        label = criterion_name,
+        choices = values,
+        selected = values[1]
+      )
     })
-  }
-  
-  # Dateninitialisierung #
-  loadData()
-  
-  ## Observers ####
-  observe({
-    req(input$rolle)
-    updateSelectInput(session, "main_category",
-                      choices = names(categories[[input$rolle]]),
-                      selected = names(categories[[input$rolle]])[1])
+    
+    # Gibt alle UI-Elemente zurück
+    do.call(tagList, criteria_uis)
   })
   
-  # Autosave Funktion des Taggings
-  observe({
-    invalidateLater(10000, session)
-    saveData(tagged_events())
-  })
-  
-  # Event Handling ####
+  # Event hinzufügen, wenn der Button geklickt wird
   observeEvent(input$add_tag, {
-    req(input$main_category)
-    time <- input$currentTime %||% 0
+    req(input$rolle, input$main_category, input$tagCurrentTime)
     
-    sub_cats <- categories[[input$rolle]][[input$main_category]]
+    # Sammle alle Kriterien-Werte
+    role <- input$rolle
+    main_cat <- input$main_category
+    time_point <- input$tagCurrentTime
+    time_formatted <- formatTime(time_point)
     
-    # Erstelle eine Liste to store Kriteriumvariable
-    criteria_values <- list()
+    # Hole die Kriterien für diese Kategorie
+    criteria_names <- names(categories[[role]][[main_cat]])
     
-    # Sammeln aller Kriterien
-    for (sub_cat in names(sub_cats)) {
-      input_name <- paste0("criteria_", make.names(sub_cat))
-      criteria_values[[sub_cat]] <- input[[input_name]]
+    # Erstelle eine Liste der gewählten Werte
+    selected_values <- list()
+    for (criterion in criteria_names) {
+      input_id <- paste0("criterion_", gsub(" ", "_", criterion))
+      if (!is.null(input[[input_id]])) {
+        selected_values[[criterion]] <- input[[input_id]]
+      }
     }
     
-    # Erstellt ein neues Event als eine Zeile
-    new_event <- data.frame(
-      Zeit = time,
-      Zeit_Format = format_time(time),
-      Rolle = input$rolle,
-      Kampfphase = input$main_category,
+    # Erstelle einen neuen Eintrag in der Datentabelle
+    new_row <- data.frame(
+      Zeit = time_point,
+      FPS = time_formatted,
+      Rolle = role,
+      Phase = main_cat,
       stringsAsFactors = FALSE
     )
     
-    # Hinzufügen von Kriterien zum Datensatz
-    for (name in names(criteria_values)) {
-      new_event[[name]] <- criteria_values[[name]]
+    # Füge ausgewählte Kriterien hinzu
+    for (criterion in names(selected_values)) {
+      new_row[[criterion]] <- selected_values[[criterion]]
     }
     
-    # Combine with existing events
-    current_events <- tagged_events()
-    if (nrow(current_events) == 0) {
-      tagged_events(new_event)
+    # Füge die neue Zeile zur Tabelle hinzu
+    if (nrow(rv$events) == 0) {
+      rv$events <- new_row
     } else {
-      # Make sure column names match
-      missing_cols <- setdiff(names(new_event), names(current_events))
-      for (col in missing_cols) {
-        current_events[[col]] <- NA
-      }
-      missing_cols <- setdiff(names(current_events), names(new_event))
-      for (col in missing_cols) {
-        new_event[[col]] <- NA
-      }
-      
-      # Combine the data frames
-      tagged_events(rbind(current_events, new_event))
-    }
-    
-    # Save the updated data
-    saveData(tagged_events())
-  })
-  
-  observeEvent(input$jump_to_row, {
-    events <- tagged_events()
-    if (nrow(events) > 0) {
-      time <- events$Zeit[input$jump_to_row + 1]
-      js$jumpToTime(time)
-    }
-  })
-  
-  # Outputs ####
-  
-  ## Video Handling des Players/Container ####
-  output$video_container <- renderUI({
-    req(input$video_upload)
-    
-    if (!dir.exists("www/videos")) {
-      dir.create("www/videos", recursive = TRUE)
-    }
-    
-    file_ext <- tolower(tools::file_ext(input$video_upload$name))
-    supported_formats <- c("mp4", "webm", "ogg", "mov")
-    
-    if (!file_ext %in% supported_formats) {
-      showNotification(
-        "Nicht unterstütztes Videoformat. Bitte verwenden Sie MP4, WebM, OGG oder MOV.",
-        type = "error"
-      )
-      return(NULL)
-    }
-    
-    video_filename <- paste0("video_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", file_ext)
-    video_path <- file.path("www/videos", video_filename)
-    web_path <- file.path("videos", video_filename)
-    
-    tryCatch({
-      file.copy(input$video_upload$datapath, video_path, overwrite = TRUE)
-      
-      tagList(
-        div(
-          class = "video-container",
-          tags$video(
-            id = "video",
-            class = "video-js vjs-default-skin vjs-big-play-centered",
-            controls = TRUE,
-            preload = "auto",
-            `data-setup` = '{"fluid": true, "responsive": true}',
-            tags$source(
-              src = web_path,
-              type = paste0("video/", file_ext)
-            )
-          )
-        ),
-        tags$script(HTML("
-        if (typeof player !== 'undefined') {
-          player.dispose();
+      # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
+      for (col in names(new_row)) {
+        if (!col %in% names(rv$events)) {
+          rv$events[[col]] <- NA
         }
-        var player = videojs('video', {
-  controls: true,
-  fluid: true,
-  responsive: true,
-  aspectRatio: '16:9',
-  playbackRates: [0.5, 1, 1.5, 2],
-  controlBar: {
-    children: [
-      'playToggle',
-      {
-        name: 'volumePanel',
-        inline: false,
-      },
-      'currentTimeDisplay',
-      'timeDivider',
-      'durationDisplay',
-      'progressControl',
-      'playbackRateMenuButton',
-      'fullscreenToggle'
-    ]
-  }
-}, function() {
-  // Player ist bereit
-  this.volume(1); // Setze Standardlautstärke
-});
-
-// Stelle sicher, dass die Steuerelemente aktiviert sind
-player.controls(true);
-        
-        player.on('timeupdate', function() {
-          Shiny.setInputValue('currentTime', this.currentTime());
-        });
-      "))
-      )
-    }, error = function(e) {
-      showNotification(
-        paste("Fehler beim Laden des Videos:", e$message),
-        type = "error",
-        duration = NULL
-      )
-      return(NULL)
-    })
-  })
-
-  
-  # Error handling
-  observeEvent(input$video_error, {
-    showNotification(
-      HTML(
-        "Fehler beim Laden des Videos.<br>
-        Mögliche Lösungen:<br>
-        - Überprüfen Sie das Videoformat (MP4, WebM, OGG, MOV)<br>
-        - Stellen Sie sicher, dass der Video-Codec H.264 ist<br>
-        - Versuchen Sie, das Video in ein anderes Format zu konvertieren"
-      ),
-      type = "error",
-      duration = 10
-    )
-  })
-  
-  # Video Liste aus Ordner laden
-  list_videos <- reactive({
-    if (dir.exists("www/videos")) {
-      videos <- list.files("www/videos", pattern = "\\.mp4$|\\.webm$|\\.ogg$|\\.mov$", full.names = TRUE)
-      basename(videos)
-    } else {
-      character(0)
+      }
+      for (col in names(rv$events)) {
+        if (!col %in% names(new_row)) {
+          new_row[[col]] <- NA
+        }
+      }
+      
+      rv$events <- rbind(rv$events, new_row)
     }
-  })
-  
-  # Update Video Dropdown
-  observe({
-    videos <- list_videos()
-    updateSelectInput(session, "video_select", 
-                      choices = c("Bitte auswählen" = "", videos))
-  })
-  
-  # Handle Video Auswahl
-  observeEvent(input$video_select, {
-  req(input$video_select)
-  if (input$video_select != "") {
-    video_path <- file.path("www/videos", input$video_select)
-    if (file.exists(video_path)) {
-      file_ext <- tools::file_ext(video_path)
-      output$video_container <- renderUI({
-        div(
-          class = "video-container",
-          tags$video(
-            id = "video",
-            class = "video-js vjs-default-skin vjs-big-play-centered",
-            controls = TRUE,
-            preload = "auto",
-            `data-setup` = '{"fluid": true, "responsive": true}',
-            tags$source(
-              src = file.path("videos", basename(video_path)),
-              type = paste0("video/", file_ext)
-            )
-          )
-        )
-      })
-      saveVideoPath(video_path)
-    }
-  }
-})
-  
-  
-  ### Kriterien UI ####
-  output$criteria_ui <- renderUI({
-    req(input$main_category, input$rolle)
-    main_cat <- input$main_category
-    sub_cats <- categories[[input$rolle]][[main_cat]]
     
-    div(
-      class = "criteria-container",
-      lapply(names(sub_cats), function(sub_cat) {
-        div(
-          class = "criteria-group",
-          radioButtons(
-            inputId = paste0("criteria_", make.names(sub_cat)),
-            label = sub_cat,
-            choices = sub_cats[[sub_cat]]
-          )
-        )
-      })
-    )
+    # Sortiere Events nach Zeit
+    rv$events <- rv$events[order(rv$events$Zeit), ]
   })
   
-  ### Eventliste als Tabelle ####
+  # Anzeige der getaggten Events in einer Tabelle
   output$event_list <- renderDT({
-    events <- tagged_events()
-    if (nrow(events) > 0) {
-      # Add a delete button column
-      events$Delete <- paste('<button class="btn btn-danger btn-sm delete-btn" data-row="', 
-                             1:nrow(events), 
-                             '"><i class="fa fa-trash"></i></button>')
-      
-      datatable(
-        events,
-        selection = 'single',
-        escape = FALSE,  # Important for rendering HTML buttons
-        options = list(
-          pageLength = 5,
-          order = list(list(0, 'desc')),
-          columnDefs = list(
-            list(targets = ncol(events) - 1, orderable = FALSE)  # Make delete column non-sortable
-          )
-        ),
-        callback = DT::JS("
-        table.on('click', 'td:first-child', function() {
-          var data = table.row($(this).parents('tr')).data();
-          Shiny.setInputValue('jump_to_row', this._DT_CellIndex.row);
-        });
-        
-        // Add delete button handler
-        table.on('click', '.delete-btn', function() {
-          var rowNum = $(this).data('row');
-          Shiny.setInputValue('delete_row', rowNum);
-        });
-      ")
-      )
-    }
-  })
-  
-  #### Zeilen in Tabelle entfernen ####
-  observeEvent(input$delete_row, {
-    current_data <- tagged_events()
-    row_to_delete <- as.numeric(input$delete_row)
+    req(rv$events)
     
-    if (!is.na(row_to_delete) && nrow(current_data) >= row_to_delete) {
-      # Remove the selected row
-      current_data <- current_data[-row_to_delete, , drop = FALSE]
-      tagged_events(current_data)
-      
-      # Save the updated data
-      saveData(current_data)
-      
-      # Show notification
-      showNotification("Event wurde gelöscht", type = "message")
+    if (nrow(rv$events) == 0) {
+      return(NULL)
     }
-  })
-  
-  ### Download CSV ####
-  output$download_tags <- downloadHandler(
-    filename = function() {
-      paste0("kampfanalyse_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-    },
-    content = function(file) {
-      export_data <- tagged_events()
-      export_data <- export_data[order(export_data$Zeit), ]
-      write.csv2(export_data, file, row.names = FALSE, fileEncoding = "UTF-8")
-    }
-  )
-  
-  # Initialisierung des Videos beim Start
-  observe({
-    saved_path <- loadVideoPath()
-    if (!is.null(saved_path) && file.exists(saved_path)) {
-      output$video_container <- renderUI({
-        file_ext <- tools::file_ext(saved_path)
-        tags$div(
-          tags$video(
-            id = "video",
-            controls = TRUE,
-            width = "100%",
-            preload = "metadata",
-            style = "max-width: 100%;",
-            tags$source(
-              src = file.path(saved_path),
-              type = paste0("video/", file_ext)
-            ),
-            "Ihr Browser unterstützt das Video-Element nicht.",
-            onloadeddata = "console.log('Video loaded successfully');",
-            onTimeUpdate = "Shiny.setInputValue('currentTime', this.currentTime);",
-            onerror = sprintf("
-            console.error('Video loading error');
-            Shiny.setInputValue('video_error', {
-              message: 'Error loading video',
-              path: '%s'
+    
+    # Formatiere Tabelle für Anzeige
+    display_df <- rv$events
+
+      # Runde die Zeit-Spalte auf eine Dezimalstelle
+    display_df$Zeit <- round(display_df$Zeit * 10) / 10
+    
+    # Füge eine Spalte für den Löschbutton hinzu
+    display_df$Event <- sapply(display_df$Zeit, function(time) {
+      sprintf('<span class="delete-btn" data-time="%s"><i class="fa fa-trash"></i> Löschen</span>', time)
+    })
+    
+    # Ersetze die Zeit-Spalte durch einen klickbaren Link
+    datatable(
+      display_df,
+      options = list(
+        pageLength = 10,
+        lengthMenu = c(5, 10, 25, 50),
+        dom = 'lftip',
+        rowCallback = JS("
+          function(row, data) {
+            $(row).addClass('clickable-row');
+            $(row).on('click', function() {
+              Shiny.setInputValue('selected_time', data[0]);
             });
-          ", saved_path)
-          )
-        )
-      })
-    }
+            
+            // Format time value as clickable
+            $('td:eq(1)', row).addClass('time-display');
+          }
+        ")
+      ),
+      selection = 'single',
+      rownames = FALSE,
+      escape = FALSE
+    )
   })
   
+  # Zum ausgewählten Zeitpunkt im Video springen
+  observeEvent(input$selected_time, {
+    req(input$selected_time)
+    session$sendCustomMessage("seekToTime", list(time = as.numeric(input$selected_time)))
+  })
+  
+  # Einzelne Zeile löschen
+  observeEvent(input$delete_row, {
+    req(input$delete_row)
+    time_to_delete <- as.numeric(input$delete_row)
+  
+    # Finde den Index der zu löschenden Zeile
+    row_index <- which(abs(rv$events$Zeit - time_to_delete) < 0.001)
+  
+    if (length(row_index) > 0) {
+    # Lösche die Zeile
+    rv$events <- rv$events[-row_index, , drop = FALSE]
+    }
+  })
+
+
+  # Alle Events löschen
   observeEvent(input$clear_all, {
     showModal(modalDialog(
-      title = "Bestätigung",
-      "Möchten Sie wirklich alle Events löschen?",
+      title = "Events löschen",
+      "Möchtest du wirklich alle getaggten Events löschen?",
       footer = tagList(
         modalButton("Abbrechen"),
-        actionButton("confirm_clear", "Ja, alle löschen", class = "btn-danger")
+        actionButton("confirm_clear", "Löschen", class = "btn-danger")
       )
     ))
   })
   
+  # Bestätigung zum Löschen aller Events
   observeEvent(input$confirm_clear, {
-    tagged_events(data.frame(
-      Zeit = numeric(),
-      Zeit_Format = numeric(),
-      Rolle = character(),
-      Kampfphase = character(),
+    rv$events <- data.frame(
+      Zeit = numeric(0),
+      FPS = numeric(0),  # Korrigiert von "ZeitFormatiert" zu "FPS"
+      Rolle = character(0),
+      Phase = character(0),
       stringsAsFactors = FALSE
-    ))
-    saveData(tagged_events())
+    )
     removeModal()
-    showNotification("Alle Events wurden gelöscht", type = "message")
   })
   
+  # Download der Events als CSV-Datei
+  output$download_tags <- downloadHandler(
+    filename = function() {
+      paste0("judo_events_", format(Sys.time(), "%Y%m%d_%H%M"), ".csv")
+    },
+    content = function(file) {
+      write.csv(rv$events, file, row.names = FALSE)
+    }
+  )
+
+  # Download der Events im speziellen Format für T-Daten
+output$download_special_format <- downloadHandler(
+  filename = function() {
+    paste0("judo_events_t_data_", format(Sys.time(), "%Y%m%d_%H%M"), ".txt")
+  },
+  content = function(file) {
+    req(rv$events)
+    if(nrow(rv$events) == 0) {
+      return(NULL)
+    }
+    
+    # Erstelle die Formatierung wie gewünscht
+    result <- character(0)
+    
+    # Füge die Headerzeile hinzu
+    result <- c(result, "TIME\tEVENT")
+    
+    # Sortiere die Events nach FPS (Frames)
+    events_sorted <- rv$events[order(rv$events$FPS), ]
+    
+    # Wenn es mindestens ein Event gibt, füge eine Zeile mit ":" ein Frame vor dem ersten Event hinzu
+    if (nrow(events_sorted) > 0) {
+      first_frame <- events_sorted$FPS[1]
+      start_frame <- first_frame - 1
+      result <- c(result, paste0(start_frame, "\t:"))
+    }
+    
+    # Verarbeite alle Events
+    for (i in 1:nrow(events_sorted)) {
+      event <- events_sorted[i, ]
+      time_value <- event$FPS
+      
+      # Sammle alle nicht-NA Werte für den Event-String
+      event_values <- c()
+      
+      # Beginne mit der Rolle (Blau oder Weiss)
+      event_values <- c(event_values, event$Rolle)
+      
+      # Füge alle weiteren nicht-NA Werte hinzu
+      for (col in names(event)) {
+        # Überspringe Standardspalten und NA-Werte
+        if (col %in% c("Zeit", "FPS", "Rolle", "Phase", "Event") || is.na(event[[col]])) {
+          next
+        }
+        event_values <- c(event_values, event[[col]])
+      }
+      
+      # Verbinde alle Werte mit Komma
+      event_str <- paste(event_values, collapse = ",")
+      
+      # Füge die Zeile zum Ergebnis hinzu
+      result <- c(result, paste0(time_value, "\t", event_str))
+    }
+    
+    # Füge eine abschließende Zeile mit "&" ein Frame nach dem letzten Event hinzu
+    if (nrow(events_sorted) > 0) {
+      last_frame <- events_sorted$FPS[nrow(events_sorted)]
+      end_frame <- last_frame + 1
+      result <- c(result, paste0(end_frame, "\t&"))
+    }
+    
+    # Schreibe das Ergebnis in die Datei
+    writeLines(result, file)
+  }
+)
 }
 
-# Applikation ausführen ####
-
-shinyApp(ui = ui, server = server)
-
+# App starten
+shinyApp(ui, server)
