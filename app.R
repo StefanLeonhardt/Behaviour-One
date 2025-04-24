@@ -10,60 +10,150 @@ library(shinyjs)
 library(DT)
 library(base64enc)
 
-## Definiere das Kategoriensystem ####
+## Definiere das Kategoriensystem mit Inputtypen ####
 categories <- list(
   "Blau" = list(
     "Kontaktaufnahme" = list(
-      "Laufrichtung" = c("Mattenrand", "Mattenzentrum", "Mattenecke"),
-      "Kampfauslage" = c("LL", "RL", "LR", "RR"),
-      "Wertungsstand" = c("Führung", "Rückstand", "Gleichstand"),
-      "Art der Kontaktaufnahme" = c("Überfallartig", "Offensiv", "Defensiv", "Neutral")
+      "Laufrichtung" = list(
+        type = "select",
+        choices = c("Mattenrand", "Mattenzentrum", "Mattenecke")
+      ),
+      "Kampfauslage" = list(
+        type = "radio",
+        choices = c("LL", "RL", "LR", "RR")
+      ),
+      "Wertungsstand" = list(
+        type = "select",
+        choices = c("Führung", "Rückstand", "Gleichstand")
+      ),
+      "Art der Kontaktaufnahme" = list(
+        type = "select",
+        choices = c("Überfallartig", "Offensiv", "Defensiv", "Neutral")
+      )
     ),
     "Kumi kata" = list(
-      "Griffsystem" = c("Klassisch", "Cross Grip", "Single Sleeve", "Single Collar"),
-      "Distanz" = c("Halbdistanz", "Normal", "Infight"),
-      "Kampfauslage" = c("LL", "RL", "LR", "RR"),
-      "Wertungsstand" = c("Führung", "Rückstand", "Gleichstand")
+      "Griffsystem" = list(
+        type = "select",
+        choices = c("Klassisch", "Cross Grip", "Single Sleeve", "Single Collar")
+      ),
+      "Distanz" = list(
+        type = "radio",
+        choices = c("Halbdistanz", "Normal", "Infight")
+      ),
+      "Kampfauslage" = list(
+        type = "radio",
+        choices = c("LL", "RL", "LR", "RR")
+      ),
+      "Wertungsstand" = list(
+        type = "select",
+        choices = c("Führung", "Rückstand", "Gleichstand")
+      )
     ),
     "Angriff Stand" = list(
-      "Art des Angriffs" = c("Direktangriff", "Gegenangriff", "Kombination", "Finte"),
-      "Nage waza" = c("Seoi nage", "Uchi mata", "Taiotoshi"),
-      "Wertung" = c("No Score", "Kinza", "Waza ari", "Ippon", "Shido")
+      "Art des Angriffs" = list(
+        type = "select",
+        choices = c("Direktangriff", "Gegenangriff", "Kombination", "Finte")
+      ),
+      "Nage waza" = list(
+        type = "selectize",
+        choices = c("Seoi-nage", "Uchi-mata", "Taiotoshi")
+      ),
+      "Wertung" = list(
+        type = "radio",
+        choices = c("No Score", "Kinza", "Yuko", "Waza-ari", "Ippon", "Shido")
+      )
     ),
     "Übergang-Stand-Boden" = list(
-      "Art des ÜSB" = c("nach gegner. Angriff", "nach eigen. Angriff", "nach gegner. Aktion", "nach eigen. Aktion"),
-      "Kontaktaufnahme" = c("Vorderseite", "Rückseite", "Seite SX", "Seite DX", "Herab", "Direkt")
+      "Art des ÜSB" = list(
+        type = "select",
+        choices = c("nach gegner. Angriff", "nach eigen. Angriff", "nach gegner. Aktion", "nach eigen. Aktion")
+      ),
+      "Kontaktaufnahme" = list(
+        type = "radio",
+        choices = c("Vorderseite", "Rückseite", "Seite SX", "Seite DX", "Herab", "Direkt")
+      )
     ),
     "Angriff Boden" = list(
-      "Ne waza" = c("Sankaku", "Kesa gatame", "Mune gatame"),
-      "Griffbeginn" = c("Arm", "Nacken", "Achselhöhle")
+      "Ne waza" = list(
+        type = "selectize",
+        choices = c("Sankaku", "Kesa gatame", "Mune gatame")
+      ),
+      "Griffbeginn" = list(
+        type = "radio",
+        choices = c("Arm", "Nacken", "Achselhöhle")
+      )
     )
   ),
   "Weiss" = list(
     "Kontaktaufnahme" = list(
-      "Laufrichtung" = c("Mattenrand", "Mattenzentrum", "Mattenecke"),
-      "Kampfauslage" = c("LL", "RL", "LR", "RR"),
-      "Wertungsstand" = c("Führung", "Rückstand", "Gleichstand"),
-      "Art der Kontaktaufnahme" = c("Überfallartig", "Offensiv", "Defensiv", "Neutral")
+      "Laufrichtung" = list(
+        type = "select",
+        choices = c("Mattenrand", "Mattenzentrum", "Mattenecke")
+      ),
+      "Kampfauslage" = list(
+        type = "radio",
+        choices = c("LL", "RL", "LR", "RR")
+      ),
+      "Wertungsstand" = list(
+        type = "select",
+        choices = c("Führung", "Rückstand", "Gleichstand")
+      ),
+      "Art der Kontaktaufnahme" = list(
+        type = "select",
+        choices = c("Überfallartig", "Offensiv", "Defensiv", "Neutral")
+      )
     ),
     "Kumi kata" = list(
-      "Griffsystem" = c("Klassisch", "Cross Grip", "Single Sleeve", "Single Collar"),
-      "Distanz" = c("Halbdistanz", "Normal", "Infight"),
-      "Kampfauslage" = c("LL", "RL", "LR", "RR"),
-      "Wertungsstand" = c("Führung", "Rückstand", "Gleichstand")
+      "Griffsystem" = list(
+        type = "select",
+        choices = c("Klassisch", "Cross Grip", "Single Sleeve", "Single Collar")
+      ),
+      "Distanz" = list(
+        type = "radio",
+        choices = c("Halbdistanz", "Normal", "Infight")
+      ),
+      "Kampfauslage" = list(
+        type = "radio",
+        choices = c("LL", "RL", "LR", "RR")
+      ),
+      "Wertungsstand" = list(
+        type = "select",
+        choices = c("Führung", "Rückstand", "Gleichstand")
+      )
     ),
     "Angriff Stand" = list(
-      "Art des Angriffs" = c("Direktangriff", "Gegenangriff", "Kombination", "Finte"),
-      "Nage waza" = c("Seoi nage", "Uchi mata", "Taiotoshi"),
-      "Wertung" = c("No Score", "Kinza", "Waza ari", "Ippon", "Shido")
+      "Art des Angriffs" = list(
+        type = "select",
+        choices = c("Direktangriff", "Gegenangriff", "Kombination", "Finte")
+      ),
+      "Nage waza" = list(
+        type = "selectize",
+        choices = c("Seoi nage", "Uchi mata", "Taiotoshi")
+      ),
+      "Wertung" = list(
+        type = "radio",
+        choices = c("No Score", "Kinza", "Yuko", "Waza ari", "Ippon", "Shido")
+      )
     ),
     "Übergang-Stand-Boden" = list(
-      "Art des ÜSB" = c("nach gegner. Angriff", "nach eigen. Angriff", "nach gegner. Aktion", "nach eigen. Aktion"),
-      "Kontaktaufnahme" = c("Vorderseite", "Rückseite", "Seite SX", "Seite DX", "Herab", "Direkt")
+      "Art des ÜSB" = list(
+        type = "select",
+        choices = c("nach gegner. Angriff", "nach eigen. Angriff", "nach gegner. Aktion", "nach eigen. Aktion")
+      ),
+      "Kontaktaufnahme" = list(
+        type = "radio",
+        choices = c("Vorderseite", "Rückseite", "Seite SX", "Seite DX", "Herab", "Direkt")
+      )
     ),
     "Angriff Boden" = list(
-      "Ne waza" = c("Sankaku", "Kesa gatame", "Mune gatame"),
-      "Griffbeginn" = c("Arm", "Nacken", "Achselhöhle")
+      "Ne waza" = list(
+        type = "selectize",
+        choices = c("Sankaku", "Kesa gatame", "Mune gatame")
+      ),
+      "Griffbeginn" = list(
+        type = "radio",
+        choices = c("Arm", "Nacken", "Achselhöhle")
+      )
     )
   )
 )
@@ -73,257 +163,261 @@ ui <- page_navbar(
   title = "Behaviour One",
   theme = bs_theme(version = 5),
   header = tags$head(
-    # Lade Font Awesome für Icons
-    tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"),
-    tags$style(HTML("
-    .video-container {
-      position: relative;
-      width: 100%;
-      padding-top: 56.25%; /* 16:9 Aspect Ratio */
-    }
-    .video-container video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-    /* Hover-Effekt für klickbare Zeilen */
-    .clickable-row {
-      cursor: pointer;
-    }
-    .clickable-row:hover {
-      background-color: #f0f8ff !important;
-    }
-    /* Zeit-Wert formatieren */
-    .time-display {
-      font-family: monospace;
-      color: #0066cc;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-    /* Lösch-Button formatieren */
-    .delete-btn {
-      color: red;
-      cursor: pointer;
-    }
-    .delete-btn:hover {
-      color: darkred;
-    }
-    /* Autosave Notification Styles */
-    .autosave-notification {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 10px 20px;
-      background-color: #4CAF50;
-      color: white;
-      border-radius: 5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      display: none;
-      z-index: 1000;
-    }
-    /* Sidebar buttons Styling */
-    .sidebar-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 15px;
-    }
-    .sidebar-buttons .btn {
-      width: 100%;
-      margin-bottom: 5px;
-    }
-    .sidebar-buttons .shiny-input-container {
-      width: 100%;
-    }
-  ")),
-
-tags$script(HTML("
-  // Globales Objekt zum Speichern der Video-URLs
-  var videoStorage = {};
+      # Lade Font Awesome für Icons
+      tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"),
+      tags$style(HTML("
+      .video-container {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      }
+      .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      /* Hover-Effekt für klickbare Zeilen */
+      .clickable-row {
+        cursor: pointer;
+      }
+      .clickable-row:hover {
+        background-color: #f0f8ff !important;
+      }
+      /* Zeit-Wert formatieren */
+      .time-display {
+        font-family: monospace;
+        color: #0066cc;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      /* Lösch-Button formatieren */
+      .delete-btn {
+        color: white;
+        cursor: pointer;
+        background-color: #dc3545; /* Optional: Ein Rot für den Hintergrund */
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+      }
+      .delete-btn:hover {
+        color: white;
+        background-color: #bd2130; /* Ein dunkleres Rot für den Hover-Zustand */
+      }
+      /* Autosave Notification Styles */
+      .autosave-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        display: none;
+        z-index: 1000;
+      }
+      /* Sidebar buttons Styling */
+      .sidebar-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 15px;
+      }
+      .sidebar-buttons .btn {
+        width: 100%;
+        margin-bottom: 5px;
+      }
+      .sidebar-buttons .shiny-input-container {
+        width: 100%;
+      }
+    ")),
   
-  $(document).ready(function() {
-    // Speed control für Video
-    Shiny.addCustomMessageHandler('updateSpeed', function(message) {
-      var video = document.getElementById('videoPlayer');
-      if (video) {
-        video.playbackRate = message.speed;
-      }
-    });
+  tags$script(HTML("
+    // Globales Objekt zum Speichern der Video-URLs
+    var videoStorage = {};
     
-    // Zu einer bestimmten Zeit springen
-    Shiny.addCustomMessageHandler('seekToTime', function(message) {
-      var video = document.getElementById('videoPlayer');
-      if (video) {
-        video.currentTime = message.time;
-      }
-    });
-    
-    // Video File Upload Handler
-    $('#videoFile').on('change', function(e) {
-      var file = e.target.files[0];
-      if (file) {
-        var objectURL = URL.createObjectURL(file);
-        $('#videoPlayer').attr('src', objectURL);
-        
-        // Speichere Video URL mit Dateinamen als Schlüssel
-        videoStorage[file.name] = objectURL;
-        
-        // Sende Liste der verfügbaren Videos an Shiny
-        var videoNamesList = Object.keys(videoStorage);
-        Shiny.setInputValue('videoNames', videoNamesList);
-        
-        // Setze den aktuellen Videowert (für die Dropdown-Liste)
-        Shiny.setInputValue('currentVideoName', file.name);
-      }
-    });
-    
-    // Wenn ein Video aus der Dropdown-Liste ausgewählt wird
-    Shiny.addCustomMessageHandler('loadSelectedVideo', function(message) {
-      var videoName = message.name;
-      if (videoStorage[videoName]) {
-        $('#videoPlayer').attr('src', videoStorage[videoName]);
-      }
-    });
-    
-    // Direkt beim Tagging die aktuelle Videozeit senden
-    $('#add_tag').on('click', function() {
-      var video = document.getElementById('videoPlayer');
-      if (video) {
-        Shiny.setInputValue('tagCurrentTime', video.currentTime);
-      }
-    });
-
-    // Delegierter Event-Handler für Delete-Buttons
-    $(document).on('click', '.delete-btn', function(e) {
-      e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
-      var timeValue = $(this).data('time');
-      Shiny.setInputValue('delete_row', timeValue);
-    });
-    
-    // Aktuelle Videozeit kontinuierlich anzeigen
-    setInterval(function() {
-      var video = document.getElementById('videoPlayer');
-      if (video) {
-        Shiny.setInputValue('currentVideoTime', video.currentTime);
-      }
-    }, 500); // alle 500ms aktualisieren
-    
-    // Autosave-Benachrichtigung anzeigen
-    Shiny.addCustomMessageHandler('showAutosaveNotification', function(message) {
-      // Erstelle Benachrichtigung, falls noch nicht vorhanden
-      if ($('#autosaveNotification').length === 0) {
-        $('body').append('<div id=\"autosaveNotification\" class=\"autosave-notification\"><i class=\"fas fa-save\"></i> ' + message.text + '</div>');
-      }
+    $(document).ready(function() {
+      // Speed control für Video
+      Shiny.addCustomMessageHandler('updateSpeed', function(message) {
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+          video.playbackRate = message.speed;
+        }
+      });
       
-      // Zeige Benachrichtigung
-      $('#autosaveNotification').text(message.text).fadeIn().delay(2000).fadeOut();
+      // Zu einer bestimmten Zeit springen
+      Shiny.addCustomMessageHandler('seekToTime', function(message) {
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+          video.currentTime = message.time;
+        }
+      });
+      
+      // Video File Upload Handler
+      $('#videoFile').on('change', function(e) {
+        var file = e.target.files[0];
+        if (file) {
+          var objectURL = URL.createObjectURL(file);
+          $('#videoPlayer').attr('src', objectURL);
+          
+          // Speichere Video URL mit Dateinamen als Schlüssel
+          videoStorage[file.name] = objectURL;
+          
+          // Sende Liste der verfügbaren Videos an Shiny
+          var videoNamesList = Object.keys(videoStorage);
+          Shiny.setInputValue('videoNames', videoNamesList);
+          
+          // Setze den aktuellen Videowert (für die Dropdown-Liste)
+          Shiny.setInputValue('currentVideoName', file.name);
+        }
+      });
+      
+      // Wenn ein Video aus der Dropdown-Liste ausgewählt wird
+      Shiny.addCustomMessageHandler('loadSelectedVideo', function(message) {
+        var videoName = message.name;
+        if (videoStorage[videoName]) {
+          $('#videoPlayer').attr('src', videoStorage[videoName]);
+        }
+      });
+      
+      // Direkt beim Tagging die aktuelle Videozeit senden
+      $('#add_tag').on('click', function() {
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+          Shiny.setInputValue('tagCurrentTime', video.currentTime);
+        }
+      });
+  
+      // Delegierter Event-Handler für Delete-Buttons
+      $(document).on('click', '.delete-btn', function(e) {
+        e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
+        var timeValue = $(this).data('time');
+        Shiny.setInputValue('delete_row', timeValue);
+      });
+      
+      // Aktuelle Videozeit kontinuierlich anzeigen
+      setInterval(function() {
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+          Shiny.setInputValue('currentVideoTime', video.currentTime);
+        }
+      }, 500); // alle 500ms aktualisieren
+      
+      // Autosave-Benachrichtigung anzeigen
+      Shiny.addCustomMessageHandler('showAutosaveNotification', function(message) {
+        // Erstelle Benachrichtigung, falls noch nicht vorhanden
+        if ($('#autosaveNotification').length === 0) {
+          $('body').append('<div id=\"autosaveNotification\" class=\"autosave-notification\"><i class=\"fas fa-save\"></i> ' + message.text + '</div>');
+        }
+        
+        // Zeige Benachrichtigung
+        $('#autosaveNotification').text(message.text).fadeIn().delay(2000).fadeOut();
+      });
     });
-  });
-"))
-  ),
-  ## Sidebar ####
+  "))
+    ),
   sidebar = sidebar(
-  width = "30%",
-  position = "right",
-  open = FALSE,
-  useShinyjs(),
-  # Füge neue Datenmanagement-Sektion hinzu
-  div(
-    style = "padding: 15px 0;",
-    h4("Datenmanagement"),
+    width = "30%",
+    position = "right",
+    open = FALSE,
+    title = useShinyjs(),
+    # Füge neue Datenmanagement-Sektion hinzu,
     div(
-      class = "sidebar-buttons",
-      downloadButton("download_tags", "Events exportieren"),
-      downloadButton("download_special_format", "T-Daten exportieren"),
-      downloadButton("save_project", "Projekt speichern"),
-      fileInput("load_project", "Projekt laden", accept = ".rds"),
-      uiOutput("restore_autosave"),
-      hr(),
-      actionButton("clear_all", "Alles löschen", class = "btn-danger", style = "width: 100%;")
-    )
-  )
-),
-  ## Analyse Seite ####
+        style = "padding: 15px 0;",
+        h4("Datenmanagement"),
+        div(
+          class = "sidebar-buttons",
+          downloadButton("download_tags", "Events exportieren"),
+          downloadButton("download_special_format", "T-Daten exportieren"),
+          downloadButton("save_project", "Projekt speichern"),
+          fileInput("load_project", "Projekt laden", accept = ".rds"),
+          uiOutput("restore_autosave"),
+          hr(),
+          actionButton("clear_all", "Alles löschen", class = "btn-danger", style = "width: 100%;")
+        )
+      )
+  ),
+  collapsible = TRUE, ## Sidebar ####
+  ## Analyse Seite ####,
   nav_panel(
-    "Analyse",
-    # Erste Zeile mit Video und Event Tagging
-    fluidRow(
-      column(6,
-             card(
-               card_header("Video"),
-               fluidRow(
-                 column(6,
-                        tags$input(
-                          id = "videoFile",
-                          type = "file",
-                          accept = "video/mp4,video/webm,video/ogg",
-                          class = "form-control mb-3"
-                        )
+      "Analyse",
+      # Erste Zeile mit Video und Event Tagging
+      fluidRow(
+        column(6,
+               card(
+                 card_header("Video"),
+                 fluidRow(
+                   column(6,
+                          tags$input(
+                            id = "videoFile",
+                            type = "file",
+                            accept = "video/mp4,video/webm,video/ogg",
+                            class = "form-control mb-3"
+                          )
+                   ),
+                   column(6,
+                          uiOutput("videoSelectionDropdown")
+                   )
                  ),
-                 column(6,
-                        uiOutput("videoSelectionDropdown")
-                 )
-               ),
-               tags$video(
-                 id = "videoPlayer",
-                 width = "100%",
-                 controls = TRUE,
-                 src = ""
-               ),
-               fluidRow(
-                 column(6,
-                        sliderInput("videoSpeed", "Geschwindigkeit", 
-                                   min = 0.25, max = 2, value = 1, step = 0.25)
+                 tags$video(
+                   id = "videoPlayer",
+                   width = "100%",
+                   controls = TRUE,
+                   src = ""
                  ),
-                 column(6,
-                        textOutput("currentTimeDisplay")
+                 fluidRow(
+                   column(6,
+                          sliderInput("videoSpeed", "Geschwindigkeit", 
+                                     min = 0.25, max = 2, value = 1, step = 0.25)
+                   ),
+                   column(6,
+                          textOutput("currentTimeDisplay")
+                   )
                  )
                )
-             )
-      ),
-      column(6,  
-             card(
-               card_header("Event Tagging"),
-               fluidRow(
-                 column(6,
-                        radioButtons("rolle", "Rolle",
-                                     choices = c("Blau", "Weiss"),
-                                     selected = "Blau")
+        ),
+        column(6,  
+               card(
+                 card_header("Event Tagging"),
+                 fluidRow(
+                   column(6,
+                          radioButtons("rolle", "Judoka",
+                                       choices = c("Blau", "Weiss"),
+                                       selected = "Blau")
+                   ),
+                   column(6,
+                          div(class = "radio-inline"),
+                          selectInput("main_category", "Phase:",
+                                      choices = NULL)
+                   )
                  ),
-                 column(6,
-                        div(class = "radio-inline"),
-                        selectInput("main_category", "Phase:",
-                                    choices = NULL)
+                 uiOutput("criteria_ui"),
+                 actionButton("add_tag", "Event taggen", class = "btn-primary")
+               )
+        )
+      ),
+      # Zweite Zeile mit der Tabelle über volle Breite
+      fluidRow(
+        column(12,
+               card(
+                 card_header("Getaggte Events"),
+                 div(
+                   class = "event-list",
+                   DTOutput("event_list")
                  )
-               ),
-               uiOutput("criteria_ui"),
-               actionButton("add_tag", "Event taggen", class = "btn-primary")
-             )
+               )
+            )
       )
     ),
-    # Zweite Zeile mit der Tabelle über volle Breite
-    fluidRow(
-      column(12,
-             card(
-               card_header("Getaggte Events"),
-               div(
-                 class = "event-list",
-                 DTOutput("event_list")
-               )
-             )
-          )
-    )
-  ),
-  
   nav_panel(
-    "Auswertung",
-    card(
-      card_header("Auswertung"),
-      p("Dieser Bereich wird später für die Auswertung verwendet.")
+      "Auswertung",
+      card(
+        card_header("Auswertung"),
+        p("Dieser Bereich wird später für die Auswertung verwendet.")
+      )
     )
-  )
 )
 
 # Server für Shiny App ####
@@ -381,136 +475,191 @@ server <- function(input, output, session) {
     updateSelectInput(session, "main_category", choices = main_cats)
   })
   
-  # Dynamisches UI für die Kriterien basierend auf der ausgewählten Hauptkategorie erstellen
-  output$criteria_ui <- renderUI({
-    req(input$rolle, input$main_category)
+# Dynamisches UI für die Kriterien basierend auf der ausgewählten Hauptkategorie erstellen
+output$criteria_ui <- renderUI({
+  req(input$rolle, input$main_category)
+  
+  role <- input$rolle
+  main_cat <- input$main_category
+  
+  if (is.null(categories[[role]][[main_cat]])) {
+    return(NULL)
+  }
+  
+  criteria_list <- categories[[role]][[main_cat]]
+  
+  # Erstelle UI-Elemente für jedes Kriterium
+  criteria_uis <- lapply(names(criteria_list), function(criterion_name) {
+    criterion_info <- criteria_list[[criterion_name]]
+    input_id <- paste0("criterion_", gsub(" ", "_", criterion_name))
     
-    role <- input$rolle
-    main_cat <- input$main_category
-    
-    if (is.null(categories[[role]][[main_cat]])) {
-      return(NULL)
-    }
-    
-    criteria_list <- categories[[role]][[main_cat]]
-    
-    # Erstelle UI-Elemente für jedes Kriterium
-    criteria_uis <- lapply(names(criteria_list), function(criterion_name) {
-      values <- criteria_list[[criterion_name]]
+    # Je nach definiertem Typ das passende UI-Element erstellen
+    if (criterion_info$type == "select") {
       selectInput(
-        inputId = paste0("criterion_", gsub(" ", "_", criterion_name)),
+        inputId = input_id,
         label = criterion_name,
-        choices = values,
-        selected = values[1]
+        choices = criterion_info$choices,
+        selected = criterion_info$choices[1]
       )
-    })
-    
-    # Gibt alle UI-Elemente zurück
-    do.call(tagList, criteria_uis)
+    } else if (criterion_info$type == "selectize") {
+      selectizeInput(
+        inputId = input_id,
+        label = criterion_name,
+        choices = criterion_info$choices,
+        selected = criterion_info$choices[1],
+        options = list(
+          placeholder = paste("Wähle", criterion_name),
+          create = TRUE,
+          createOnBlur = TRUE
+        )
+      )
+    } else if (criterion_info$type == "radio") {
+      radioButtons(
+        inputId = input_id,
+        label = criterion_name,
+        choices = criterion_info$choices,
+        selected = criterion_info$choices[1],
+        inline = TRUE
+      )
+    } else if (criterion_info$type == "checkbox") {
+      checkboxGroupInput(
+        inputId = input_id,
+        label = criterion_name,
+        choices = criterion_info$choices,
+        selected = criterion_info$choices[1]
+      )
+    } else {
+      # Fallback auf select
+      selectInput(
+        inputId = input_id,
+        label = criterion_name,
+        choices = criterion_info$choices,
+        selected = criterion_info$choices[1]
+      )
+    }
   })
   
-  # Event hinzufügen, wenn der Button geklickt wird
-  observeEvent(input$add_tag, {
-    req(input$rolle, input$main_category, input$tagCurrentTime)
-    
-    # Sammle alle Kriterien-Werte
-    role <- input$rolle
-    main_cat <- input$main_category
-    time_point <- input$tagCurrentTime
-    time_formatted <- formatTime(time_point)
-    
-    # Hole die Kriterien für diese Kategorie
-    criteria_names <- names(categories[[role]][[main_cat]])
-    
-    # Erstelle eine Liste der gewählten Werte
-    selected_values <- list()
-    for (criterion in criteria_names) {
-      input_id <- paste0("criterion_", gsub(" ", "_", criterion))
-      if (!is.null(input[[input_id]])) {
-        selected_values[[criterion]] <- input[[input_id]]
-      }
+  # Gibt alle UI-Elemente zurück
+  do.call(tagList, criteria_uis)
+})
+  
+# Event hinzufügen, wenn der Button geklickt wird
+observeEvent(input$add_tag, {
+  req(input$rolle, input$main_category, input$tagCurrentTime)
+  
+  # Sammle alle Kriterien-Werte
+  role <- input$rolle
+  main_cat <- input$main_category
+  time_point <- input$tagCurrentTime
+  time_formatted <- formatTime(time_point)
+  
+  # Hole die Kriterien für diese Kategorie
+  criteria_names <- names(categories[[role]][[main_cat]])
+  
+  # Erstelle eine Liste der gewählten Werte
+  selected_values <- list()
+  for (criterion in criteria_names) {
+    input_id <- paste0("criterion_", gsub(" ", "_", criterion))
+    if (!is.null(input[[input_id]])) {
+      selected_values[[criterion]] <- input[[input_id]]
     }
-    
-    # Erstelle einen neuen Eintrag in der Datentabelle
-    new_row <- data.frame(
-      Zeit = time_point,
-      FPS = time_formatted,
-      Rolle = role,
-      Phase = main_cat,
-      stringsAsFactors = FALSE
-    )
-    
-    # Füge ausgewählte Kriterien hinzu
-    for (criterion in names(selected_values)) {
+  }
+  
+  # Erstelle einen neuen Eintrag in der Datentabelle
+  new_row <- data.frame(
+    Zeit = time_point,
+    FPS = time_formatted,
+    Rolle = role,
+    Phase = main_cat,
+    stringsAsFactors = FALSE
+  )
+  
+  # Füge ausgewählte Kriterien hinzu
+  for (criterion in names(selected_values)) {
+    # Wenn es sich um einen Vektor handelt (z.B. bei Checkboxen), verbinde die Werte
+    if (length(selected_values[[criterion]]) > 1) {
+      new_row[[criterion]] <- paste(selected_values[[criterion]], collapse = ", ")
+    } else {
       new_row[[criterion]] <- selected_values[[criterion]]
     }
-    
-    # Füge die neue Zeile zur Tabelle hinzu
-    if (nrow(rv$events) == 0) {
-      rv$events <- new_row
-    } else {
-      # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
-      for (col in names(new_row)) {
-        if (!col %in% names(rv$events)) {
-          rv$events[[col]] <- NA
-        }
-      }
-      for (col in names(rv$events)) {
-        if (!col %in% names(new_row)) {
-          new_row[[col]] <- NA
-        }
-      }
-      
-      rv$events <- rbind(rv$events, new_row)
+  }
+  
+# Füge die neue Zeile zur Tabelle hinzu
+if (nrow(rv$events) == 0) {
+  rv$events <- new_row
+} else {
+  # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
+  for (col in names(new_row)) {
+    if (!col %in% names(rv$events)) {
+      rv$events[[col]] <- NA
     }
+  }
+  for (col in names(rv$events)) {
+    if (!col %in% names(new_row)) {
+      new_row[[col]] <- NA
+    }
+  }
+  
+  rv$events <- rbind(rv$events, new_row)
+}
+
     
     # Sortiere Events nach Zeit
     rv$events <- rv$events[order(rv$events$Zeit), ]
   })
   
-  # Anzeige der getaggten Events in einer Tabelle
-  output$event_list <- renderDT({
-    req(rv$events)
-    
-    if (nrow(rv$events) == 0) {
-      return(NULL)
-    }
-    
-    # Formatiere Tabelle für Anzeige
-    display_df <- rv$events
+# Anzeige der getaggten Events in einer Tabelle
+output$event_list <- renderDT({
+  req(rv$events)
+  
+  if (nrow(rv$events) == 0) {
+    return(NULL)
+  }
+  
+  # Formatiere Tabelle für Anzeige
+  display_df <- rv$events
 
-      # Runde die Zeit-Spalte auf eine Dezimalstelle
-    display_df$Zeit <- round(display_df$Zeit * 10) / 10
-    
-    # Füge eine Spalte für den Löschbutton hinzu
-    display_df$Event <- sapply(display_df$Zeit, function(time) {
-      sprintf('<span class="delete-btn" data-time="%s"><i class="fa fa-trash"></i> Löschen</span>', time)
-    })
-    
-    # Ersetze die Zeit-Spalte durch einen klickbaren Link
-    datatable(
-      display_df,
-      options = list(
-        pageLength = 10,
-        lengthMenu = c(5, 10, 25, 50),
-        dom = 'lftip',
-        rowCallback = JS("
-          function(row, data) {
-            $(row).addClass('clickable-row');
-            $(row).on('click', function() {
-              Shiny.setInputValue('selected_time', data[0]);
-            });
-            
-            // Format time value as clickable
-            $('td:eq(1)', row).addClass('time-display');
-          }
-        ")
-      ),
-      selection = 'single',
-      rownames = FALSE,
-      escape = FALSE
-    )
+  # Runde die Zeit-Spalte auf eine Dezimalstelle
+  display_df$Zeit <- round(display_df$Zeit * 10) / 10
+  
+  # Füge eine Spalte für den Löschbutton hinzu
+  display_df$Event <- sapply(display_df$Zeit, function(time) {
+    sprintf('<button class="btn btn-sm btn-danger delete-btn" data-time="%s"><i class="fa fa-trash"></i> Löschen</button>', time)
   })
+  
+  # Datatable mit angepasstem JavaScript
+  datatable(
+    display_df,
+    options = list(
+      pageLength = 10,
+      lengthMenu = c(5, 10, 25, 50),
+      dom = 'lftip',
+      rowCallback = JS("
+        function(row, data) {
+          $(row).addClass('clickable-row');
+          $(row).on('click', function(e) {
+            // Nur wenn NICHT auf den Lösch-Button geklickt wurde
+            if (!$(e.target).hasClass('delete-btn') && !$(e.target).closest('.delete-btn').length) {
+              Shiny.setInputValue('selected_time', data[0]);
+            }
+          });
+          
+          // Format time value as clickable
+          $('td:eq(1)', row).addClass('time-display');
+          
+          // Separater Event-Handler für den Lösch-Button
+          $('.delete-btn', row).on('click', function(e) {
+            e.stopPropagation();
+            Shiny.setInputValue('delete_row', $(this).data('time'));
+          });
+        }
+      ")
+    ),
+    selection = 'none', # Ändere zu 'none', da wir unsere eigene Klick-Logik haben
+    rownames = FALSE,
+    escape = FALSE
+  )
+})
   
   # Zum ausgewählten Zeitpunkt im Video springen
   observeEvent(input$selected_time, {
@@ -518,19 +667,27 @@ server <- function(input, output, session) {
     session$sendCustomMessage("seekToTime", list(time = as.numeric(input$selected_time)))
   })
   
-  # Einzelne Zeile löschen
-  observeEvent(input$delete_row, {
-    req(input$delete_row)
-    time_to_delete <- as.numeric(input$delete_row)
+# Einzelne Zeile löschen
+observeEvent(input$delete_row, {
+  req(input$delete_row)
+  time_to_delete <- as.numeric(input$delete_row)
   
-    # Finde den Index der zu löschenden Zeile
-    row_index <- which(abs(rv$events$Zeit - time_to_delete) < 0.001)
-  
-    if (length(row_index) > 0) {
+  # Finde den Index der zu löschenden Zeile - präziserer Vergleich
+  # Benutze which.min() um den genauesten Treffer zu finden
+  differences <- abs(rv$events$Zeit - time_to_delete)
+  if(length(differences) > 0 && min(differences) < 0.1) { # Toleranz von 0.1 Sekunden
+    row_index <- which.min(differences)
+    
     # Lösche die Zeile
     rv$events <- rv$events[-row_index, , drop = FALSE]
-    }
-  })
+    
+    # Melde Erfolg
+    showNotification("Event wurde gelöscht", type = "message")
+  } else {
+    # Melde Fehler wenn keine passende Zeit gefunden wurde
+    showNotification("Konnte kein passendes Event finden", type = "error")
+  }
+})
 
 
   # Alle Events löschen
