@@ -1,7 +1,7 @@
-# Dies ist eine Shiny web Applikation. Du kannst durch drücken des Button "Run App" loslegen
+# Dies ist eine Shiny web Applikation zum Tagging von Judowettkämpfen #
 
 # Setup ####
-## Set maximum upload size to 5GB ####
+## Set maximum upload Größe auf 5GB pro Video ####
 options(shiny.maxRequestSize = 5000 * 1024^2)
 ## R-Pakete laden ####
 library(shiny)
@@ -128,7 +128,7 @@ categories <- list(
       ),
       "Nage waza" = list(
         type = "selectize",
-        choices = c("Seoi nage", "Uchi mata", "Taiotoshi")
+        choices = c("Seoi-nage", "Uchi-mata", "Tai-otoshi")
       ),
       "Wertung" = list(
         type = "radio",
@@ -204,6 +204,30 @@ ui <- page_navbar(
       .delete-btn:hover {
         color: white;
         background-color: #bd2130; /* Ein dunkleres Rot für den Hover-Zustand */
+      }
+      /* Edit-Button formatieren */
+      .edit-btn {
+        color: white;
+        cursor: pointer;
+        background-color: #28a745; /* Grün für den Hintergrund */
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        margin-right: 5px;
+      }
+      .edit-btn:hover {
+        color: white;
+        background-color: #218838; /* Ein dunkleres Grün für den Hover-Zustand */
+      }
+      /* Styling für Edit-Modus */
+      .edit-mode {
+        border: 2px solid #28a745 !important;
+        background-color: #f0fff0 !important;
+      }
+      .action-btn-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
       }
       /* Autosave Notification Styles */
       .autosave-notification {
@@ -290,13 +314,19 @@ ui <- page_navbar(
         }
       });
   
-      // Delegierter Event-Handler für Delete-Buttons
+      // Delegierte Event-Handler für Delete- und Edit-Buttons
       $(document).on('click', '.delete-btn', function(e) {
         e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
         var timeValue = $(this).data('time');
         Shiny.setInputValue('delete_row', timeValue);
       });
-      
+
+      $(document).on('click', '.edit-btn', function(e) {
+        e.stopPropagation(); // Verhindert, dass das Event zum Table-Row-Click bubbled
+        var timeValue = $(this).data('time');
+        Shiny.setInputValue('edit_row', timeValue);
+      });
+
       // Aktuelle Videozeit kontinuierlich anzeigen
       setInterval(function() {
         var video = document.getElementById('videoPlayer');
@@ -312,14 +342,15 @@ ui <- page_navbar(
           $('body').append('<div id=\"autosaveNotification\" class=\"autosave-notification\"><i class=\"fas fa-save\"></i> ' + message.text + '</div>');
         }
         
-        // Zeige Benachrichtigung
+      // Zeige Benachrichtigung
         $('#autosaveNotification').text(message.text).fadeIn().delay(2000).fadeOut();
       });
     });
   "))
-    ),
+    ), 
+  ## Sidebar ####
   sidebar = sidebar(
-    width = "30%",
+    width = "20%",
     position = "right",
     open = FALSE,
     title = useShinyjs(),
@@ -339,14 +370,15 @@ ui <- page_navbar(
         )
       )
   ),
-  collapsible = TRUE, ## Sidebar ####
+  collapsible = TRUE,
+  
   ## Analyse Seite ####,
   nav_panel(
       "Analyse",
       # Erste Zeile mit Video und Event Tagging
       fluidRow(
         column(6,
-               card(
+               card(height = "100%",
                  card_header("Video"),
                  fluidRow(
                    column(6,
@@ -379,7 +411,7 @@ ui <- page_navbar(
                )
         ),
         column(6,  
-               card(
+               card(height = "100%",
                  card_header("Event Tagging"),
                  fluidRow(
                    column(6,
@@ -423,16 +455,18 @@ ui <- page_navbar(
 # Server für Shiny App ####
 server <- function(input, output, session) {
   # Reaktive Werte für die Anwendung
-  rv <- reactiveValues(
-    events = data.frame(
-      Zeit = numeric(0),
-      FPS = numeric(0),
-      Rolle = character(0),
-      Phase = character(0),
-      stringsAsFactors = FALSE
-    ),
-    current_video = NULL
-  )
+rv <- reactiveValues(
+  events = data.frame(
+    Zeit = numeric(0),
+    FPS = numeric(0),
+    Rolle = character(0),
+    Phase = character(0),
+    stringsAsFactors = FALSE
+  ),
+  current_video = NULL,
+  editing = FALSE,      # Flag für Bearbeitungsmodus
+  edit_index = NULL     # Index der zu bearbeitenden Zeile
+)
   
   # Zeit in FPS #
   formatTime <- function(seconds) {
@@ -543,14 +577,22 @@ output$criteria_ui <- renderUI({
   do.call(tagList, criteria_uis)
 })
   
-# Event hinzufügen, wenn der Button geklickt wird
+# Event hinzufügen oder aktualisieren, wenn der Button geklickt wird
 observeEvent(input$add_tag, {
-  req(input$rolle, input$main_category, input$tagCurrentTime)
+  req(input$rolle, input$main_category)
   
   # Sammle alle Kriterien-Werte
   role <- input$rolle
   main_cat <- input$main_category
-  time_point <- input$tagCurrentTime
+  
+  # Zeit vom Video oder aus bestehendem Event
+  time_point <- if (rv$editing && !is.null(rv$edit_index)) {
+    rv$events$Zeit[rv$edit_index]
+  } else {
+    req(input$tagCurrentTime)
+    input$tagCurrentTime
+  }
+  
   time_formatted <- formatTime(time_point)
   
   # Hole die Kriterien für diese Kategorie
@@ -565,7 +607,7 @@ observeEvent(input$add_tag, {
     }
   }
   
-  # Erstelle einen neuen Eintrag in der Datentabelle
+  # Erstelle einen neuen Eintrag für die Datentabelle
   new_row <- data.frame(
     Zeit = time_point,
     FPS = time_formatted,
@@ -584,29 +626,56 @@ observeEvent(input$add_tag, {
     }
   }
   
-# Füge die neue Zeile zur Tabelle hinzu
-if (nrow(rv$events) == 0) {
-  rv$events <- new_row
-} else {
-  # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
-  for (col in names(new_row)) {
-    if (!col %in% names(rv$events)) {
-      rv$events[[col]] <- NA
+  # Im Bearbeitungsmodus: ersetze die existierende Zeile
+  if (rv$editing && !is.null(rv$edit_index)) {
+    # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
+    for (col in names(new_row)) {
+      if (!col %in% names(rv$events)) {
+        rv$events[[col]] <- NA
+      }
     }
-  }
-  for (col in names(rv$events)) {
-    if (!col %in% names(new_row)) {
-      new_row[[col]] <- NA
+    for (col in names(rv$events)) {
+      if (!col %in% names(new_row)) {
+        new_row[[col]] <- NA
+      }
+    }
+    
+    # Ersetze die Zeile
+    rv$events[rv$edit_index, names(new_row)] <- new_row
+    
+    # Bearbeitungsmodus zurücksetzen
+    rv$editing <- FALSE
+    rv$edit_index <- NULL
+    
+    # Button-Erscheinungsbild zurücksetzen
+    shinyjs::removeClass(selector = "#add_tag", class = "btn-success")
+    shinyjs::html("add_tag", "Event taggen")
+    
+    showNotification("Event wurde aktualisiert", type = "message")
+  } else {
+    # Im normalen Modus: füge eine neue Zeile hinzu
+    if (nrow(rv$events) == 0) {
+      rv$events <- new_row
+    } else {
+      # Stelle sicher, dass alle Spalten in beiden Dataframes vorhanden sind
+      for (col in names(new_row)) {
+        if (!col %in% names(rv$events)) {
+          rv$events[[col]] <- NA
+        }
+      }
+      for (col in names(rv$events)) {
+        if (!col %in% names(new_row)) {
+          new_row[[col]] <- NA
+        }
+      }
+      
+      rv$events <- rbind(rv$events, new_row)
     }
   }
   
-  rv$events <- rbind(rv$events, new_row)
-}
-
-    
-    # Sortiere Events nach Zeit
-    rv$events <- rv$events[order(rv$events$Zeit), ]
-  })
+  # Sortiere Events nach Zeit
+  rv$events <- rv$events[order(rv$events$Zeit), ]
+})
   
 # Anzeige der getaggten Events in einer Tabelle
 output$event_list <- renderDT({
@@ -622,9 +691,9 @@ output$event_list <- renderDT({
   # Runde die Zeit-Spalte auf eine Dezimalstelle
   display_df$Zeit <- round(display_df$Zeit * 10) / 10
   
-  # Füge eine Spalte für den Löschbutton hinzu
+  # Füge Spalten für den Bearbeiten- und Löschbutton hinzu
   display_df$Event <- sapply(display_df$Zeit, function(time) {
-    sprintf('<button class="btn btn-sm btn-danger delete-btn" data-time="%s"><i class="fa fa-trash"></i> Löschen</button>', time)
+  sprintf('<button class="btn btn-sm btn-success edit-btn" data-time="%s"><i class="fa fa-edit"></i> Bearbeiten</button><button class="btn btn-sm btn-danger delete-btn" data-time="%s"><i class="fa fa-trash"></i> Löschen</button>', time, time)
   })
   
   # Datatable mit angepasstem JavaScript
@@ -635,25 +704,20 @@ output$event_list <- renderDT({
       lengthMenu = c(5, 10, 25, 50),
       dom = 'lftip',
       rowCallback = JS("
-        function(row, data) {
-          $(row).addClass('clickable-row');
-          $(row).on('click', function(e) {
-            // Nur wenn NICHT auf den Lösch-Button geklickt wurde
-            if (!$(e.target).hasClass('delete-btn') && !$(e.target).closest('.delete-btn').length) {
-              Shiny.setInputValue('selected_time', data[0]);
-            }
-          });
-          
-          // Format time value as clickable
-          $('td:eq(1)', row).addClass('time-display');
-          
-          // Separater Event-Handler für den Lösch-Button
-          $('.delete-btn', row).on('click', function(e) {
-            e.stopPropagation();
-            Shiny.setInputValue('delete_row', $(this).data('time'));
-          });
-        }
-      ")
+      function(row, data) {
+        $(row).addClass('clickable-row');
+        $(row).on('click', function(e) {
+      // Nur wenn NICHT auf einen der Buttons geklickt wurde
+      if (!$(e.target).hasClass('delete-btn') && !$(e.target).closest('.delete-btn').length &&
+          !$(e.target).hasClass('edit-btn') && !$(e.target).closest('.edit-btn').length) {
+        Shiny.setInputValue('selected_time', data[0]);
+      }
+    });
+    
+    // Format time value as clickable
+    $('td:eq(1)', row).addClass('time-display');
+  }
+")
     ),
     selection = 'none', # Ändere zu 'none', da wir unsere eigene Klick-Logik haben
     rownames = FALSE,
@@ -689,6 +753,77 @@ observeEvent(input$delete_row, {
   }
 })
 
+# Bearbeitungsmodus aktivieren
+observeEvent(input$edit_row, {
+  req(input$edit_row)
+  time_to_edit <- as.numeric(input$edit_row)
+  
+  # Finde den Index der zu bearbeitenden Zeile
+  differences <- abs(rv$events$Zeit - time_to_edit)
+  if(length(differences) > 0 && min(differences) < 0.1) { # Toleranz von 0.1 Sekunden
+    row_index <- which.min(differences)
+    
+    # Setze Bearbeitungsmodus
+    rv$editing <- TRUE
+    rv$edit_index <- row_index
+    
+    # Event Daten laden
+    event_data <- rv$events[row_index, ]
+    
+    # Debug-Ausgabe
+    print(paste("Bearbeite Event an Zeit:", event_data$Zeit))
+    print(event_data)
+    
+    # Rolle und Hauptkategorie aktualisieren
+    updateRadioButtons(session, "rolle", selected = event_data$Rolle)
+    updateSelectInput(session, "main_category", selected = event_data$Phase)
+    
+    # Verzögerung erhöhen und überprüfen, ob die Hauptkategorie korrekt gesetzt wurde
+    shinyjs::delay(500, {
+      if (input$main_category != event_data$Phase) {
+        updateSelectInput(session, "main_category", selected = event_data$Phase)
+      }
+      
+      # Nochmals verzögert die Kriterien aktualisieren
+      shinyjs::delay(300, {
+        # Alle Kriterien für diese Kategorie durchlaufen
+        criteria_names <- names(categories[[event_data$Rolle]][[event_data$Phase]])
+        for (criterion in criteria_names) {
+          input_id <- paste0("criterion_", gsub(" ", "_", criterion))
+          
+          # Wenn der Wert in den Event-Daten existiert
+          if (criterion %in% names(event_data) && !is.na(event_data[[criterion]])) {
+            # Feld-Typ bestimmen
+            criterion_type <- categories[[event_data$Rolle]][[event_data$Phase]][[criterion]]$type
+            
+            print(paste("Aktualisiere Feld:", input_id, "mit Wert:", event_data[[criterion]]))
+            
+            if (criterion_type == "select" || criterion_type == "selectize") {
+              updateSelectInput(session, input_id, selected = event_data[[criterion]])
+            } else if (criterion_type == "radio") {
+              updateRadioButtons(session, input_id, selected = event_data[[criterion]])
+            } else if (criterion_type == "checkbox") {
+              # Bei Checkbox die Werte teilen
+              selected_values <- unlist(strsplit(event_data[[criterion]], ", "))
+              updateCheckboxGroupInput(session, input_id, selected = selected_values)
+            }
+          }
+        }
+        
+        # Button-Erscheinungsbild ändern
+        shinyjs::addClass(selector = "#add_tag", class = "btn-success")
+        shinyjs::html("add_tag", "Event aktualisieren")
+      })
+    })
+    
+    # Zum Zeitpunkt im Video springen
+    session$sendCustomMessage("seekToTime", list(time = event_data$Zeit))
+    
+    # Melde Erfolg
+    showNotification("Event wird bearbeitet. Aktualisieren Sie die Werte und klicken Sie auf 'Event aktualisieren'.", 
+                     type = "message", duration = 5)
+  }
+})  
 
   # Alle Events löschen
   observeEvent(input$clear_all, {
