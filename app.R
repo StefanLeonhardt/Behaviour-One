@@ -346,6 +346,97 @@ ui <- page_navbar(
         $('#autosaveNotification').text(message.text).fadeIn().delay(2000).fadeOut();
       });
     });
+// Videosequenz extrahieren
+Shiny.addCustomMessageHandler('extractVideoClip', function(message) {
+  const video = document.getElementById(message.videoId);
+  if (!video) return;
+  
+  // Hole die Video-URL und erstelle einen temporären Link
+  const startTime = message.startTime;
+  const endTime = message.endTime;
+  const currentSrc = video.src;
+  
+  if (!currentSrc) {
+    alert('Kein Video geladen!');
+    return;
+  }
+  
+  // MediaRecorder API für modernen Ansatz
+  if (window.MediaRecorder) {
+    // Temporäres Video-Element für Aufnahme erstellen
+    const tempVideo = document.createElement('video');
+    tempVideo.src = currentSrc;
+    tempVideo.muted = true;
+    tempVideo.currentTime = startTime;
+    tempVideo.style.display = 'none';
+    document.body.appendChild(tempVideo);
+    
+    // Canvas für Aufnahme
+    const canvas = document.createElement('canvas');
+    document.body.appendChild(canvas);
+    canvas.style.display = 'none';
+    
+    tempVideo.onloadedmetadata = function() {
+      canvas.width = tempVideo.videoWidth;
+      canvas.height = tempVideo.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
+      const duration = endTime - startTime;
+      const stream = canvas.captureStream(30); // 30 FPS
+      const mediaRecorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
+      const chunks = [];
+      
+      mediaRecorder.ondataavailable = function(e) {
+        chunks.push(e.data);
+      };
+      
+      mediaRecorder.onstop = function() {
+        // Video-Datei erzeugen und herunterladen
+        const blob = new Blob(chunks, {type: 'video/webm'});
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = message.outputName;
+        a.click();
+        
+        // Ressourcen freigeben
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          document.body.removeChild(canvas);
+          document.body.removeChild(tempVideo);
+        }, 100);
+      };
+      
+      // Starte Aufnahme und Abspielung
+      mediaRecorder.start();
+      tempVideo.play();
+      
+      // Zeichne jeden Frame
+      function drawFrame() {
+        if (tempVideo.currentTime < endTime) {
+          ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(drawFrame);
+        } else {
+          mediaRecorder.stop();
+          tempVideo.pause();
+        }
+      }
+      
+      drawFrame();
+    };
+    
+    tempVideo.load();
+  } else {
+    // Fallback für ältere Browser
+    alert('Ihr Browser unterstützt keine direkte Videobearbeitung. Sie können das gesamte Video herunterladen und extern bearbeiten.');
+    
+    const a = document.createElement('a');
+    a.href = currentSrc;
+    a.download = 'video.mp4';
+    a.click();
+  }
+});
   "))
     ), 
   ## Sidebar ####
@@ -378,38 +469,52 @@ ui <- page_navbar(
       # Erste Zeile mit Video und Event Tagging
       fluidRow(
         column(6,
-               card(height = "100%",
-                 card_header("Video"),
-                 fluidRow(
-                   column(6,
-                          tags$input(
-                            id = "videoFile",
-                            type = "file",
-                            accept = "video/mp4,video/webm,video/ogg",
-                            class = "form-control mb-3"
-                          )
-                   ),
-                   column(6,
-                          uiOutput("videoSelectionDropdown")
-                   )
-                 ),
-                 tags$video(
-                   id = "videoPlayer",
-                   width = "100%",
-                   controls = TRUE,
-                   src = ""
-                 ),
-                 fluidRow(
-                   column(6,
-                          sliderInput("videoSpeed", "Geschwindigkeit", 
-                                     min = 0.25, max = 2, value = 1, step = 0.25)
-                   ),
-                   column(6,
-                          textOutput("currentTimeDisplay")
-                   )
-                 )
-               )
+  card(height = "100%",
+    card_header("Video"),
+    layout_sidebar(
+      sidebar = sidebar(
+        width = 250,
+        class = "player-sidebar",
+        h5("Video-Steuerung"),
+        div(class = "section",
+          sliderInput("videoSpeed", "Geschwindigkeit", 
+                      min = 0.25, max = 2, value = 1, step = 0.25)
         ),
+        div(class = "section",
+          h5("Videoschnitt"),
+          actionButton("markStartTime", "Markiere Anfang (A)", class = "btn-sm btn-primary", style = "width: 100%; margin-bottom: 10px"),
+          verbatimTextOutput("startTimeDisplay"),
+          actionButton("markEndTime", "Markiere Ende (B)", class = "btn-sm btn-primary", style = "width: 100%; margin-bottom: 10px"),
+          verbatimTextOutput("endTimeDisplay"),
+          hr(),
+          actionButton("extractClip", "Sequenz extrahieren", class = "btn-success", style = "width: 100%")
+        )
+      ),
+      fluidRow(
+        column(12,
+          tags$input(
+            id = "videoFile",
+            type = "file",
+            accept = "video/mp4,video/webm,video/ogg",
+            class = "form-control mb-3"
+          )
+        )
+      ),
+      fluidRow(
+        column(12,
+          uiOutput("videoSelectionDropdown")
+        )
+      ),
+      tags$video(
+        id = "videoPlayer",
+        width = "100%",
+        controls = TRUE,
+        src = ""
+      ),
+      textOutput("currentTimeDisplay")
+    )
+  )
+),
         column(6,  
                card(height = "100%",
                  card_header("Event Tagging"),
@@ -443,14 +548,43 @@ ui <- page_navbar(
             )
       )
     ),
-  nav_panel(
-      "Auswertung",
-      card(
-        card_header("Auswertung"),
-        p("Dieser Bereich wird später für die Auswertung verwendet.")
+  ## Auswertung Seite ####,
+nav_panel(
+  "Auswertung",
+  card(
+    navset_tab(
+      nav_panel("Überblick", 
+                p("Allgemeiner Überblick über die gesammelten Daten."),
+                plotOutput("overview_plot")),
+      nav_panel("Zeitanalyse", 
+                p("Analyse der Events über die Zeit."),
+                plotOutput("time_analysis_plot")),
+      nav_panel("Statistiken", 
+                p("Statistische Auswertung der getaggten Events."),
+                verbatimTextOutput("stats_output")),
+      nav_panel("Trendanalyse", 
+                p("Trendanalyse der erfassten Techniken und Bewegungen."),
+                plotOutput("trend_plot")),
+      nav_menu(
+        "Erweiterte Analysen",
+        nav_panel("Vergleichsanalyse", 
+                  p("Vergleich verschiedener Wettkämpfe oder Judoka."),
+                  plotOutput("comparison_plot")),
+        "----",
+        "Externe Ressourcen:",
+        nav_item(
+          a("Judo-Techniken", href = "https://www.ijf.org/ijf/education/technical-analysis", target = "_blank")
+        ),
+        nav_item(
+          a("Datenanalyse-Dokumentation", href = "https://shiny.posit.co/r/gallery/", target = "_blank")
+        )
       )
-    )
+    ),
+    id = "analysis_tabs"
+  )
 )
+)
+
 
 # Server für Shiny App ####
 server <- function(input, output, session) {
@@ -484,6 +618,54 @@ rv <- reactiveValues(
     req(input$currentVideoTime)
     paste("Zeit:", formatTime(input$currentVideoTime))
   })
+
+  # Reaktive Werte für Videoschnitt
+  rv$clipStartTime <- NULL
+  rv$clipEndTime <- NULL
+
+  # Markiere Anfang der Videosequenz
+  observeEvent(input$markStartTime, {
+    req(input$currentVideoTime)
+    rv$clipStartTime <- input$currentVideoTime
+  })
+
+  # Markiere Ende der Videosequenz
+  observeEvent(input$markEndTime, {
+    req(input$currentVideoTime)
+    rv$clipEndTime <- input$currentVideoTime
+  })
+
+  # Zeige Start- und Endzeit an
+  output$startTimeDisplay <- renderText({
+    if (is.null(rv$clipStartTime)) return("Noch nicht markiert")
+    paste0("A: ", round(rv$clipStartTime, 1), " s (", formatTime(rv$clipStartTime), " Frames)")
+  })
+
+  output$endTimeDisplay <- renderText({
+    if (is.null(rv$clipEndTime)) return("Noch nicht markiert")
+    paste0("B: ", round(rv$clipEndTime, 1), " s (", formatTime(rv$clipEndTime), " Frames)")
+  })
+
+  # Sequenz extrahieren
+  observeEvent(input$extractClip, {
+    req(rv$clipStartTime, rv$clipEndTime, input$selectedVideo)
+    
+    if (rv$clipStartTime >= rv$clipEndTime) {
+      showNotification("Endzeit muss nach Startzeit liegen", type = "error")
+      return()
+    }
+    
+    # JavaScript-Funktion zum Extrahieren der Videoclips
+    session$sendCustomMessage("extractVideoClip", list(
+      startTime = rv$clipStartTime,
+      endTime = rv$clipEndTime,
+      videoId = "videoPlayer",
+      outputName = paste0("clip_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".mp4")
+    ))
+    
+    showNotification("Videosequenz wird extrahiert...", type = "message", duration = 5)
+  })
+
   
   # Dropdown für die Videoauswahl aktualisieren
   output$videoSelectionDropdown <- renderUI({
@@ -825,6 +1007,99 @@ observeEvent(input$edit_row, {
   }
 })  
 
+# Platzhalter für Auswertungs-Outputs
+output$overview_plot <- renderPlot({
+  # Placeholder für den Überblicksplot
+  plot(rv$events$Zeit, runif(nrow(rv$events)), 
+       main = "Überblick der Events", 
+       xlab = "Zeit", ylab = "Wert",
+       col = ifelse(rv$events$Rolle == "Blau", "blue", "red"),
+       pch = 19)
+  if(nrow(rv$events) > 0) {
+    legend("topright", legend = c("Blau", "Weiss"), 
+           col = c("blue", "red"), pch = 19)
+  }
+})
+
+output$time_analysis_plot <- renderPlot({
+  # Placeholder für Zeitanalyse
+  if(nrow(rv$events) > 0) {
+    hist(rv$events$Zeit, 
+         main = "Verteilung der Events über die Zeit",
+         xlab = "Zeit (s)", col = "skyblue", border = "white")
+  } else {
+    plot(0, 0, type = "n", axes = FALSE, xlab = "", ylab = "",
+         main = "Keine Daten verfügbar")
+  }
+})
+
+output$stats_output <- renderPrint({
+  # Placeholder für statistische Zusammenfassung
+  if(nrow(rv$events) > 0) {
+    cat("Anzahl der Events:", nrow(rv$events), "\n\n")
+    
+    # Anzahl pro Rolle
+    role_counts <- table(rv$events$Rolle)
+    cat("Events pro Judoka:\n")
+    print(role_counts)
+    cat("\n")
+    
+    # Anzahl pro Phase
+    phase_counts <- table(rv$events$Phase)
+    cat("Events pro Phase:\n")
+    print(phase_counts)
+  } else {
+    cat("Keine Daten verfügbar für die statistische Analyse.")
+  }
+})
+
+output$trend_plot <- renderPlot({
+  # Placeholder für Trendanalyse
+  if(nrow(rv$events) > 0) {
+    # Einfacher Plot der Events nach Phase
+    phases <- unique(rv$events$Phase)
+    counts <- sapply(phases, function(p) sum(rv$events$Phase == p))
+    barplot(counts, names.arg = phases, 
+            main = "Events pro Phase", 
+            col = rainbow(length(phases)),
+            las = 2, cex.names = 0.8)
+  } else {
+    plot(0, 0, type = "n", axes = FALSE, xlab = "", ylab = "",
+         main = "Keine Daten verfügbar")
+  }
+})
+
+output$comparison_plot <- renderPlot({
+  # Placeholder für Vergleichsanalyse
+  if(nrow(rv$events) > 0 && length(unique(rv$events$Rolle)) > 1) {
+    # Vergleich der Events nach Rolle und Phase
+    roles <- unique(rv$events$Rolle)
+    phases <- unique(rv$events$Phase)
+    
+    # Erstelle Datenmatrix für den Vergleich
+    comparison_data <- matrix(0, nrow = length(roles), ncol = length(phases))
+    rownames(comparison_data) <- roles
+    colnames(comparison_data) <- phases
+    
+    for(i in 1:length(roles)) {
+      for(j in 1:length(phases)) {
+        comparison_data[i, j] <- sum(rv$events$Rolle == roles[i] & rv$events$Phase == phases[j])
+      }
+    }
+    
+    barplot(comparison_data, beside = TRUE, 
+            main = "Vergleich der Events nach Judoka und Phase",
+            col = c("blue", "red"),
+            legend.text = roles,
+            args.legend = list(x = "topright"))
+  } else {
+    plot(0, 0, type = "n", axes = FALSE, xlab = "", ylab = "",
+         main = "Nicht genügend Daten für einen Vergleich")
+  }
+})
+
+
+  
   # Alle Events löschen
   observeEvent(input$clear_all, {
     showModal(modalDialog(
